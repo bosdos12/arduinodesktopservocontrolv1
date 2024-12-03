@@ -1,6 +1,9 @@
 import serial
 import tkinter as Tk
 import threading
+import queue
+
+
 
 class Main():
     def __init__(self):
@@ -8,6 +11,10 @@ class Main():
         # Initialize servo positions
         self.posX = 0
         self.posY = 0
+
+
+        # Create que for inter-thread communication
+        self.messageQue = queue.Queue()
 
 
         self.root = Tk.Tk()
@@ -34,12 +41,18 @@ class Main():
 
     def serialCommunication(self):
         
-        serialComm = serial.Serial('/dev/ttyUSB0', 9600)
-    
+        ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
+        
         while True:
-            i += 1
-            print("Hello " + str(i))
 
+            if not self.messageQue.empty():
+                commandToSend = self.messageQue.get()
+                print(f"Serial Thread: Sending message `{commandToSend}`")
+                ser.write(commandToSend.encode())
+
+            # Read line from serial port (you can use .read() or .readline() depending on your data format)
+            data = ser.readline().decode('utf-8', errors="ignore").strip()
+            # print(data)
         
     def setupGUI(self):
         # Configure the grid to make columns and rows expandable
@@ -60,10 +73,10 @@ class Main():
         self.buttons_left.pack(fill="x", pady=20)
 
         # Add the buttons horizontally, ensuring even spacing
-        self.button_left_1 = Tk.Button(self.buttons_left, text="<")
+        self.button_left_1 = Tk.Button(self.buttons_left, text="<", command=lambda: self.makeMovement("x", "l"))
         self.button_left_1.pack(side="left", expand=True, padx=10)
 
-        self.button_left_2 = Tk.Button(self.buttons_left, text=">")
+        self.button_left_2 = Tk.Button(self.buttons_left, text=">", command=lambda: self.makeMovement("x", "r"))
         self.button_left_2.pack(side="left", expand=True, padx=10)
 
         # Add a label to the left dashboard
@@ -83,15 +96,21 @@ class Main():
         self.buttons_right.pack(fill="x", pady=20)
 
         # Add the buttons horizontally, ensuring even spacing
-        self.button_right_1 = Tk.Button(self.buttons_right, text="<")
+        self.button_right_1 = Tk.Button(self.buttons_right, text="<", command=lambda: self.makeMovement("y", "l"))
         self.button_right_1.pack(side="left", expand=True, padx=10)
 
-        self.button_right_2 = Tk.Button(self.buttons_right, text=">")
+        self.button_right_2 = Tk.Button(self.buttons_right, text=">", command=lambda: self.makeMovement("y", "r"))
         self.button_right_2.pack(side="left", expand=True, padx=10)
 
         # Add a label to the left dashboard
         self.position_label_right = Tk.Label(self.right_frame, text="Position", font=("Arial", 14))
         self.position_label_right.pack(pady=20)
+
+    # target: x, y
+    # direction: r, l
+    def makeMovement(self, target, direction):
+        self.messageQue.put(f"{target} {direction}")
+
 
 
 if __name__ == "__main__":
